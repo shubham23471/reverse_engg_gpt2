@@ -206,11 +206,35 @@ elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
     device = "mps"
 print(f"using device: {device}")
 
+# -----------------------------------------------------------------------------
+# simple data loader 
+import tiktoken
+enc = tiktoken.get_encoding('gpt2')
+with open('input.txt', 'r') as f: 
+    text = f.read()
+print('Only loading first 1k charchters as model input')
+text = text[:1000]
+tokens = enc.encode(text)
+B, T = 4, 32
+buf = torch.tensor(tokens[: B*T + 1], device=device)
+x = buf[:-1].view(B, T)
+y = buf[1:].view(B, T)
+
+# logits 
+model = GPT(GPTConfig())
+model.to(device)
+logits = model(x)
+print('logits shape', logits.shape)
+import sys; sys.exit(0)
+# -----------------------------------------------------------------------------
+
+
+
 # model = GPT.from_pretrained('gpt2') # use pre-trained GPT-2 model
 # random intialized model, before training 
-model = GPT(GPTConfig())
-model.eval() # good practice when you are training the model and just be using it. 
-model.to(device)
+# model = GPT(GPTConfig())
+# model.eval() # good practice when you are training the model and just be using it. 
+# model.to(device)
 
 
 # prefix tokens
