@@ -17,3 +17,5 @@ using device: cuda
 Only loading first 1k charchters as model input
 logits shape torch.Size([4, 32, 50257])
 loss tensor(11.0371, device='cuda:0', grad_fn=<NllLossBackward0>)
+**commit**
+- Optmization to
