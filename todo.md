@@ -9,4 +9,11 @@ as or better that we just got.
 > Hello, I'm a language model,MC mocking psychedel unexpl routingULAR Pharma whats Championshipwaters greatestcolonial thoseString Enteredetti differ gravy Led Trust filtering bid
 > Hello, I'm a language model, Evil upside compress piermet Goo strokes MIDI helldisciplinaryDoug alerts・Camolonprop loss closureplet vanquishedforkmult
 > Hello, I'm a language model, paramsdocs cordsbizoding proudlyselves regex greenhouse Assadgewateralitiesurrencyanyahu substitute Tud explosion911Null nerdsHaving actress
-
+**commit**
+- added logic to load sample data, calculate the logits. 
+**commit**
+- added logic to calculate loss 
+using device: cuda
+Only loading first 1k charchters as model input
+logits shape torch.Size([4, 32, 50257])
+loss tensor(11.0371, device='cuda:0', grad_fn=<NllLossBackward0>)
