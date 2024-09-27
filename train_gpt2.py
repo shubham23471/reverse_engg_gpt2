@@ -245,9 +245,6 @@ torch.manual_seed(1337)
 if torch.cuda.is_available():
     torch.cuda.manual_seed(1337)
 
-import os
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
-
 
 # -----------------------------------------------------------------------------
 # simple data loader 
@@ -290,6 +287,7 @@ torch.set_float32_matmul_precision('high')
 # logits 
 model = GPT(GPTConfig())
 model.to(device)
+model = torch.compile(model)
 
 optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 for i in range(50):
