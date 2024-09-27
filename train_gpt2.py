@@ -191,15 +191,26 @@ class GPT(nn.Module):
         return model
 
 # -----------------------------------------------------------------------------
-model = GPT.from_pretrained('gpt2')
-print("didn't crash yay!")
+# to check the if the weights are copied properly
+# model = GPT.from_pretrained('gpt2')
+# print("didn't crash yay!")
 
 num_return_sequences = 5
 max_length = 30
 
-model = GPT.from_pretrained('gpt2')
+# attempt to autodetect the device
+device = "cpu"
+if torch.cuda.is_available():
+    device = "cuda"
+elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+    device = "mps"
+print(f"using device: {device}")
+
+# model = GPT.from_pretrained('gpt2') # use pre-trained GPT-2 model
+# random intialized model, before training 
+model = GPT(GPTConfig())
 model.eval() # good practice when you are training the model and just be using it. 
-model.to('cuda')
+model.to(device)
 
 
 # prefix tokens
@@ -208,7 +219,7 @@ enc = tiktoken.get_encoding('gpt2')
 tokens = enc.encode("Hello, I'm a language model,")
 tokens = torch.tensor(tokens, dtype=torch.long) # (8,)
 tokens = tokens.unsqueeze(0).repeat(num_return_sequences, 1) # (5, 8)
-x = tokens.to('cuda')
+x = tokens.to(device)
 
 # generate! right now x is (B, T) where B = 5, T = 8
 # set the seed to 42
