@@ -291,7 +291,7 @@ train_loader = DataLoaderLite(B=8, T=1024)
 # to run on tensor cores 
 torch.set_float32_matmul_precision('high')
 # logits 
-model = GPT(GPTConfig())
+model = GPT(GPTConfig(vocab_size=50304))
 model.to(device)
 model = torch.compile(model)
 
