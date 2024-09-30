@@ -276,6 +276,16 @@ if torch.cuda.is_available():
 
 
 # -----------------------------------------------------------------------------
+# gradient accumulation 
+total_batch_size = 524288 # 2**19 (using nice numnber), ~0.5M, in number of tokens
+B = 8 # 16 (andrej's B) # micro batch size
+T = 1024 # sequence length
+assert total_batch_size % (B * T) == 0, "make sure total_batch_size is divisible by B * T"
+grad_accum_steps = total_batch_size // (B * T)
+print(f"total desired batch size: {total_batch_size}")
+print(f"=> calculated gradient accumulation steps: {grad_accum_steps}")
+
+
 # simple data loader 
 import tiktoken
 
@@ -308,8 +318,7 @@ class DataLoaderLite:
             self.current_position = 0
         return x, y
     
-# train_loader = DataLoaderLite(B=16, T=1024) #>>> giving memory error: will try to fix later
-train_loader = DataLoaderLite(B=8, T=1024)
+train_loader = DataLoaderLite(B=B, T=T)
 
 # to run on tensor cores 
 torch.set_float32_matmul_precision('high')
@@ -339,12 +348,21 @@ optimizer = model.configure_optimizers(weight_decay=0.1, learning_rate=6e-4, dev
 
 for step in range(max_steps):
     t0 = time.time()
-    x, y = train_loader.next_batch()
-    x, y = x.to(device), y.to(device)
+
     optimizer.zero_grad()
-    with torch.autocast(device_type=device, dtype=torch.bfloat16):
-        logits, loss = model(x, y)  
-    loss.backward()
+    loss_accum = 0.0
+    for micro_step in range(grad_accum_steps):
+        x, y = train_loader.next_batch()
+        x, y = x.to(device), y.to(device)
+        with torch.autocast(device_type=device, dtype=torch.bfloat16):
+            logits, loss = model(x, y)  
+        # we have to scale the loss to account for gradient accumulation,
+        # because the gradients just add on each successive backward().
+        # addition of gradients corresponds to a SUM in the objective, but
+        # instead of a SUM we want MEAN. Scale the loss here so it comes out right
+        loss = loss/grad_accum_steps
+        loss_accum += loss.detach() # detach : for detaching the tensor from the graph
+        loss.backward()
 
     # cliping the gradient norm at 1.0 for optimization as GPT3 paper
     norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -361,9 +379,10 @@ for step in range(max_steps):
     # so we can get the time properly
     torch.cuda.synchronize()
     t1 = time.time()
-    dt = (t1 - t0) * 1000 # time difference in milliseconds
-    token_per_sec = (train_loader.B * train_loader.T) / (t1 - t0)
-    print(f"step {step:4d} | loss: {loss.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {token_per_sec:.2f}")
+    dt = (t1 - t0)  # time difference in milliseconds
+    tokens_processed = train_loader.B * train_loader.T * grad_accum_steps
+    token_per_sec = tokens_processed / dt
+    print(f"step {step:4d} | loss: {loss_accum.item():.6f} | lr {lr:.4e} | norm: {norm:.4f} | dt: {dt*1000:.2f}ms | tok/sec: {token_per_sec:.2f}")
 
 import sys; sys.exit(0)
 # -----------------------------------------------------------------------------
